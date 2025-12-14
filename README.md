@@ -132,6 +132,8 @@ for _, object in next, workspace:GetChildren() do
 		table.insert(objects, object)
 	end
 end
+
+NewESP:Setup(objects)
 ```
 
 Lastly, enable the ESP.
@@ -161,6 +163,8 @@ for _, object in next, workspace:GetChildren() do
 		table.insert(objects, object)
 	end
 end
+
+NewESP:Setup(objects)
 
 NewESP:Enable()
 ```
