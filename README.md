@@ -1,4 +1,4 @@
-<h1 align="center">Ascendent Hub</h1>
+<h1 align="center">Ascendent ESP</h1>
 
 <div align="center">
 <strong>⚠️ This library only supports executors that have Drawing Lib! ⚠️</strong>
