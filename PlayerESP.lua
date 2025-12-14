@@ -8,28 +8,60 @@ local camera = workspace.CurrentCamera
 local AscendentESP = {}
 AscendentESP.__index = AscendentESP
 
-function AscendentESP.new()
+function AscendentESP.new(Config)
 	local self = setmetatable({}, AscendentESP)
 
 	self.enabled = false
 
-	self.boxEnabled = false
-	self.healthBarEnabled = false
-	self.tracerEnabled = false
-	self.skeletonEnabled = false
-	self.nameEnabled = false
-	self.rainbowEnabled = false
+	self.boxEnabled = Config and Config.Box or false
+	self.healthBarEnabled = Config and Config.HealthBar or false
+	self.tracerEnabled = Config and Config.Tracer or false
+	self.skeletonEnabled = Config and Config.Skeleton or false
+	self.nameEnabled = Config and Config.Name or false
+	self.rainbowEnabled = Config and Config.Rainbow or false
 
-	self.defaultColor = Color3.fromRGB(250, 150, 255)
+	self.defaultColor = Config and Config.DefaultColor or Color3.fromRGB(250, 150, 255)
 	self.targetColors = {}
+	
+	self.maxDistance = Config and Config.MaxDistance or 300
 
 	self._skeletons = {}
 	self._tracers = {}
 	self._boxes = {}
 	self._names = {}
 	self._healthbars = {}
+	
+	self._activeTargets = {}
 
 	self._connections = {}
+	
+	setmetatable(self, {
+		__index = function(object, key)
+			if key == "Box" then return object.boxEnabled end
+			if key == "HealthBar" then return object.healthBarEnabled end
+			if key == "Tracer" then return object.tracerEnabled end
+			if key == "Skeleton" then return object.skeletonEnabled end
+			if key == "Name" then return object.nameEnabled end
+			if key == "Rainbow" then return object.rainbowEnabled end
+			if key == "DefaultColor" then return object.defaultColor end
+			if key == "MaxDistance" then return object.maxDistance end
+			
+			return rawget(AscendentESP, key)
+		end,
+
+		__newindex = function(object, key, value)
+			if key == "Box" then object.boxEnabled = value return end
+			if key == "HealthBar" then object.healthBarEnabled = value return end
+			if key == "Tracer" then object.tracerEnabled = value return end
+			if key == "Skeleton" then object.skeletonEnabled = value return end
+			if key == "Name" then object.nameEnabled = value return end
+			if key == "Rainbow" then object.rainbowEnabled = value return end
+			if key == "DefaultColor" then object.defaultColor = value return end
+			if key == "MaxDistance" then object.maxDistance = value return end
+			
+			rawset(object, key, value)
+		end
+	})
 
 	return self
 end
@@ -45,11 +77,12 @@ function AscendentESP:_createDrawing(type, properties)
 end
 
 function AscendentESP:_getRainbow()
-	local speed = 0.25
-	local hue = (tick() * speed) % 1
-	local saturation = 0.8 + 0.2 * math.sin(tick() * speed)
-	local value = 0.9 + 0.1 * math.cos(tick() * speed)
-
+	local stored = tick()
+	
+	local hue = (math.sin(stored * 0.3) * 0.5 + 0.5)
+	local saturation = 0.4 + 0.1 * math.sin(stored * 0.2 + 1)
+	local value = 0.85 + 0.1 * math.sin(stored * 0.25 + 2)
+	
 	return Color3.fromHSV(hue, saturation, value)
 end
 
@@ -66,7 +99,7 @@ function AscendentESP:_drawBone(target, index, pointA, pointB, color)
 			Color = color,
 			Transparency = 1
 		})
-
+		
 		local line = self._skeletons[target][index]
 		line.From = Vector2.new(pointAPosition.X, pointAPosition.Y)
 		line.To = Vector2.new(pointBPosition.X, pointBPosition.Y)
@@ -75,27 +108,26 @@ function AscendentESP:_drawBone(target, index, pointA, pointB, color)
 end
 
 function AscendentESP:_cleanup(target)
-	local objects = {self._boxes, self._tracers, self._names, self._healthbars}
-
-	for _, table in next, objects do
-		local object = table[target]
-
-		if object then
-			object:Remove()
-			table[target] = nil
-		end
+	if self._boxes[target] then
+		self._boxes[target].Visible = false
 	end
 
-	local skeleton = self._skeletons[target]
+	if self._healthbars[target] then
+		self._healthbars[target].Visible = false
+	end
 
-	if skeleton then
-		for _, line in next, skeleton do
-			if line then 
-				line:Remove() 
-			end
+	if self._tracers[target] then
+		self._tracers[target].Visible = false
+	end
+
+	if self._names[target] then
+		self._names[target].Visible = false
+	end
+
+	if self._skeletons[target] then
+		for _, line in next, self._skeletons[target] do
+			line.Visible = false
 		end
-
-		self._skeletons[target] = nil
 	end
 end
 
@@ -187,19 +219,16 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 		Thickness = 1.5
 	})
 
-	local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if humanoidRootPart then
-		local humanoidRootPartScreenPosition, onScreen = camera:WorldToViewportPoint(humanoidRootPart.Position)
-		if onScreen then
-			self._tracers[target].From = Vector2.new(humanoidRootPartScreenPosition.X, humanoidRootPartScreenPosition.Y)
-			self._tracers[target].To = Vector2.new(screenPosition.X, screenPosition.Y)
-			self._tracers[target].Color = color
-			self._tracers[target].Visible = true
-			return
-		end
-	end
+	local viewportSize = camera.ViewportSize
+	local cameraScreenPosition = Vector2.new(
+		viewportSize.X / 2,
+		viewportSize.Y / 2
+	)
 
-	self._tracers[target].Visible = false
+	self._tracers[target].From = cameraScreenPosition
+	self._tracers[target].To = Vector2.new(screenPosition.X, screenPosition.Y)
+	self._tracers[target].Color = color
+	self._tracers[target].Visible = true
 end
 
 function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, color)
@@ -282,55 +311,78 @@ function AscendentESP:_drawSkeleton(target, character, color)
 	end
 end
 
-function AscendentESP:setupESP(target)
-	if target == player then return end
-
-	local function setupCharacter()
-		local connection
-		connection = runService.RenderStepped:Connect(function()
-			if not self.enabled then 
-				if connection then connection:Disconnect() end
-				return 
-			end
-
-			local character = target.Character
-			if not character or not character.Parent then
-				self:_cleanup(target)
-				return
-			end
-
-			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-			local humanoid = character:FindFirstChildWhichIsA("Humanoid")
-			if not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
-				self:_cleanup(target)
-				return
-			end
-
-			local color = self.targetColors[target] or self.defaultColor
-			if self.rainbowEnabled then color = self:_getRainbow() end
-
-			local headPos, headOnScreen = camera:WorldToViewportPoint(humanoidRootPart.Position + Vector3.new(0, 3, 0))
-			local footPos, footOnScreen = camera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0, 3, 0))
-			local boxHeight = footPos.Y - headPos.Y
-			local boxWidth = boxHeight / 1.5
-			local boxCenter = Vector2.new((headPos.X + footPos.X)/2, (headPos.Y + footPos.Y)/2)
-			local distance = math.floor((camera.CFrame.Position - humanoidRootPart.Position).Magnitude)
-
-			if headOnScreen or footOnScreen then
-				self:_drawBox(target, boxCenter, boxWidth, boxHeight, color)
-				self:_drawHealthBar(target, boxCenter, boxWidth, boxHeight, color)
-				self:_drawTracer(target, boxCenter, color)
-				self:_drawName(target, boxCenter, boxHeight, distance, color)
-				self:_drawSkeleton(target, character, color)
-			else
-				self:_cleanup(target)
-			end
-		end)
+function AscendentESP:_updateTargetESP(target)
+	local character = target.Character
+	if not character or not character.Parent then
+		self:_cleanup(target)
+		return
 	end
 
-	if target.Character then setupCharacter() end
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+	if not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
+		self:_cleanup(target)
+		return
+	end
 
-	target.CharacterAdded:Connect(setupCharacter)
+	local color = self.targetColors[target] or self.defaultColor
+	if self.rainbowEnabled then
+		color = self:_getRainbow()
+	end
+
+	local headPosition, headOnScreen = camera:WorldToViewportPoint(
+		humanoidRootPart.Position + Vector3.new(0, 3, 0)
+	)
+	local footPosition, footOnScreen = camera:WorldToViewportPoint(
+		humanoidRootPart.Position - Vector3.new(0, 3, 0)
+	)
+
+	if not (headOnScreen or footOnScreen) then
+		self:_cleanup(target)
+		return
+	end
+
+	local boxHeight = footPosition.Y - headPosition.Y
+	local boxWidth = boxHeight / 1.5
+	local boxCenter = Vector2.new(
+		(headPosition.X + footPosition.X) / 2,
+		(headPosition.Y + footPosition.Y) / 2
+	)
+
+	local distance = 0
+	local localRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if localRoot then
+		distance = math.floor((localRoot.Position - humanoidRootPart.Position).Magnitude)
+	end
+
+	if self.maxDistance > 0 and distance > self.maxDistance then
+		self:_cleanup(target)
+		return
+	end
+
+	self:_drawBox(target, boxCenter, boxWidth, boxHeight, color)
+	self:_drawHealthBar(target, boxCenter, boxWidth, boxHeight, color)
+	self:_drawTracer(target, boxCenter, color)
+	self:_drawName(target, boxCenter, boxHeight, distance, color)
+	self:_drawSkeleton(target, character, color)
+end
+
+function AscendentESP:setupESP(target)
+	if target == player then return end
+	
+	self._activeTargets[target] = true
+
+	if not self._renderConnection then
+		self._renderConnection = runService.RenderStepped:Connect(function()
+			if not self.enabled then return end
+			
+			for activeTarget in next, self._activeTargets do
+				self:_updateTargetESP(activeTarget)
+			end
+		end)
+		
+		table.insert(self._connections, self._renderConnection)
+	end
 end
 
 function AscendentESP:SetColor(targetPlayer, color)
@@ -347,19 +399,29 @@ function AscendentESP:Enable()
 	table.insert(self._connections, playerService.PlayerAdded:Connect(function(target)
 		self:setupESP(target)
 	end))
+	
+	table.insert(self._connections, playerService.PlayerRemoving:Connect(function(target)
+		self._activeTargets[target] = nil
+		self:_cleanup(target)
+	end))
 end
 
 function AscendentESP:Disable()
 	self.enabled = false
+
+	if self._activeTargets then
+		for target in next, self._activeTargets do
+			self:_cleanup(target)
+		end
+	end
+
 	self:_removeESP()
 
-	if self._connections then
-		for _, connection in next, self._connections do
-			connection:Disconnect()
-		end
-
-		self._connections = nil
+	for _, connection in next, self._connections do
+		connection:Disconnect()
 	end
+
+	self._connections = {}
 end
 
 return AscendentESP
