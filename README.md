@@ -26,20 +26,31 @@
 To get started, load the library.
 ```lua
 local AscendentESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/jaeelin/Ascendent-ESP/refs/heads/main/PlayerESP.lua"))()
-
-local NewESP = AscendentESP.new()
 ```
-Then, setup your configurations.
+Then, set up your configurations.
 
 ```lua
-NewESP.boxEnabled = true
-NewESP.healthBarEnabled = true
-NewESP.tracerEnabled = true
-NewESP.skeletonEnabled = true
-NewESP.nameEnabled = false
-NewESP.rainbowEnabled = false
+local NewESP = AscendentESP.new({
+	Box = true,
+	HealthBar = true,
+	Tracer = true,
+	Skeleton = true,
+	Name = true,
+	Rainbow = true,
+	MaxDistance = 150,
+	DefaultColor = Color3.fromRGB(250, 150, 255)
+})
+```
 
-NewESP.defaultColor = Color3.fromRGB(250, 150, 255)
+To change the visibility of the drawing objects later, simply set their values to the desired amount.
+
+```lua
+NewESP.Box = false
+NewESP.HealthBar = false
+NewESP.Tracer = false
+NewESP.Skeleton = false
+NewESP.Name = false
+NewESP.DefaultColor = Color3.fromRGB(50, 50, 50)
 ```
 
 Lastly, enable your ESP.
@@ -53,15 +64,26 @@ NewESP:Enable()
 ```lua
 local AscendentESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/jaeelin/Ascendent-ESP/refs/heads/main/PlayerESP.lua"))()
 
-local NewESP = AscendentESP.new()
-
-NewESP.boxEnabled = true
-NewESP.healthBarEnabled = true
-NewESP.tracerEnabled = true
-NewESP.skeletonEnabled = true
-NewESP.nameEnabled = true
+local NewESP = AscendentESP.new({
+	Box = true,
+	HealthBar = true,
+	Tracer = true,
+	Skeleton = true,
+	Name = true,
+	Rainbow = true,
+	MaxDistance = 150,
+	DefaultColor = Color3.fromRGB(250, 150, 255)
+})
 
 NewESP:Enable()
+
+task.wait(5)
+
+NewESP.Rainbow = false
+
+task.wait(5)
+
+NewESP:Disable()
 ```
 <p align="center">
   <img src="https://raw.githubusercontent.com/jaeelin/Ascendent-ESP/main/Images/PlayerESP/Box.png" alt="Box ESP" width="150" style="vertical-align: middle;">
@@ -106,21 +128,21 @@ NewESP:Enable()
 To get started, load the library.
 ```lua
 local AscendentESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/jaeelin/Ascendent-ESP/refs/heads/main/ObjectESP.lua"))()
-
-local NewESP = AscendentESP.new()
 ```
-Then, setup your configurations.
+Then, set up your configurations.
 
 ```lua
-NewESP.boxEnabled = true
-NewESP.tracerEnabled = true
-NewESP.nameEnabled = false
-NewESP.rainbowEnabled = false
-
-NewESP.defaultColor = Color3.fromRGB(250, 150, 255)
+local NewESP = AscendentESP.new({
+	Box = true,
+	Tracer = true,
+	Name = true,
+	Rainbow = true,
+	MaxDistance = 150,
+	DefaultColor = Color3.fromRGB(250, 150, 255)
+})
 ```
 
-Then, setup your objects using :Setup().
+Then, set up your objects using :Setup().
 
 Note: You can use a singular object or a table of objects.
 
@@ -147,14 +169,14 @@ NewESP:Enable()
 ```lua
 local AscendentESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/jaeelin/Ascendent-ESP/refs/heads/main/ObjectESP.lua"))()
 
-local NewESP = AscendentESP.new()
-
-NewESP.boxEnabled = true
-NewESP.tracerEnabled = true
-NewESP.nameEnabled = false
-NewESP.rainbowEnabled = false
-
-NewESP.defaultColor = Color3.fromRGB(250, 150, 255)
+local NewESP = AscendentESP.new({
+	Box = true,
+	Tracer = true,
+	Name = true,
+	Rainbow = true,
+	MaxDistance = 150,
+	DefaultColor = Color3.fromRGB(250, 150, 255)
+})
 
 local objects = {}
 
@@ -167,6 +189,14 @@ end
 NewESP:Setup(objects)
 
 NewESP:Enable()
+
+task.wait(5)
+
+NewESP.Rainbow = false
+
+task.wait(5)
+
+NewESP:Disable()
 ```
 <p align="center">
   <img src="https://raw.githubusercontent.com/jaeelin/Ascendent-ESP/refs/heads/main/Images/ObjectESP/ObjectBox.png" alt="Box ESP" width="320" style="vertical-align: middle;">
