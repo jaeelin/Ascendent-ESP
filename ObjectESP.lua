@@ -8,24 +8,52 @@ local camera = workspace.CurrentCamera
 local AscendentESP = {}
 AscendentESP.__index = AscendentESP
 
-function AscendentESP.new()
+function AscendentESP.new(config)
 	local self = setmetatable({}, AscendentESP)
 
 	self.enabled = false
 
-	self.boxEnabled = false
-	self.tracerEnabled = false
-	self.nameEnabled = false
-	self.rainbowEnabled = false
+	self.boxEnabled = config and config.Box or false
+	self.tracerEnabled = config and config.Tracer or false
+	self.nameEnabled = config and config.Name or false
+	self.rainbowEnabled = config and config.Rainbow or false
 
-	self.defaultColor = Color3.fromRGB(250, 150, 255)
+	self.defaultColor = config and config.DefaultColor or Color3.fromRGB(250, 150, 255)
 	self.objectColors = {}
+
+	self.maxDistance = config and config.MaxDistance or 300
 
 	self._tracers = {}
 	self._boxes = {}
 	self._names = {}
 
+	self._trackedObjects = {}
+
 	self._connections = {}
+
+	setmetatable(self, {
+		__index = function(object, key)
+			if key == "Box" then return object.boxEnabled end
+			if key == "Tracer" then return object.tracerEnabled end
+			if key == "Name" then return object.nameEnabled end
+			if key == "Rainbow" then return object.rainbowEnabled end
+			if key == "DefaultColor" then return object.defaultColor end
+			if key == "MaxDistance" then return object.maxDistance end
+
+			return rawget(AscendentESP, key)
+		end,
+
+		__newindex = function(object, key, value)
+			if key == "Box" then object.boxEnabled = value return end
+			if key == "Tracer" then object.tracerEnabled = value return end
+			if key == "Name" then object.nameEnabled = value return end
+			if key == "Rainbow" then object.rainbowEnabled = value return end
+			if key == "DefaultColor" then object.defaultColor = value return end
+			if key == "MaxDistance" then object.maxDistance = value return end
+
+			rawset(object, key, value)
+		end
+	})
 
 	return self
 end
@@ -41,10 +69,11 @@ function AscendentESP:_createDrawing(type, properties)
 end
 
 function AscendentESP:_getRainbow()
-	local speed = 0.25
-	local hue = (tick() * speed) % 1
-	local saturation = 0.8 + 0.2 * math.sin(tick() * speed)
-	local value = 0.9 + 0.1 * math.cos(tick() * speed)
+	local stored = tick()
+
+	local hue = (math.sin(stored * 0.3) * 0.5 + 0.5)
+	local saturation = 0.4 + 0.1 * math.sin(stored * 0.2 + 1)
+	local value = 0.85 + 0.1 * math.sin(stored * 0.25 + 2)
 
 	return Color3.fromHSV(hue, saturation, value)
 end
@@ -74,59 +103,59 @@ function AscendentESP:_removeESP()
 	self._tracers, self._boxes, self._names = {}, {}, {}
 end
 
-function AscendentESP:_drawBox(obj, screenPos, size, color)
+function AscendentESP:_drawBox(object, screenPosition, size, color)
 	if not self.boxEnabled then
-		if self._boxes[obj] then self._boxes[obj].Visible = false end
+		if self._boxes[object] then self._boxes[object].Visible = false end
 		return
 	end
 
-	self._boxes[obj] = self._boxes[obj] or self:_createDrawing("Square", {
+	self._boxes[object] = self._boxes[object] or self:_createDrawing("Square", {
 		Color = color,
 		Thickness = 1.5,
 		Transparency = 1,
 		Filled = false
 	})
-	self._boxes[obj].Size = size
-	self._boxes[obj].Position = Vector2.new(screenPos.X - size.X/2, screenPos.Y - size.Y/2)
-	self._boxes[obj].Color = color
-	self._boxes[obj].Visible = true
+
+	self._boxes[object].Size = size
+	self._boxes[object].Position = Vector2.new(screenPosition.X - size.X / 2, screenPosition.Y - size.Y / 2)
+	self._boxes[object].Color = color
+	self._boxes[object].Visible = true
 end
 
-function AscendentESP:_drawTracer(obj, screenPos, color)
+function AscendentESP:_drawTracer(object, screenPosition, color)
 	if not self.tracerEnabled then
-		if self._tracers[obj] then self._tracers[obj].Visible = false end
+		if self._tracers[object] then
+			self._tracers[object].Visible = false
+		end
+
 		return
 	end
 
-	self._tracers[obj] = self._tracers[obj] or self:_createDrawing("Line", {
+	self._tracers[object] = self._tracers[object] or self:_createDrawing("Line", {
 		Color = color,
 		Thickness = 1.5
 	})
-	
-	local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if humanoidRootPart then
-		local startPosition3D = humanoidRootPart.Position
-		local startPosition2D, onScreenStart = camera:WorldToViewportPoint(startPosition3D)
 
-		if onScreenStart then
-			self._tracers[obj].From = Vector2.new(startPosition2D.X, startPosition2D.Y)
-			self._tracers[obj].To = screenPos
-			self._tracers[obj].Color = color
-			self._tracers[obj].Visible = true
-			return
-		end
-	end
-	self._tracers[obj].Visible = false
+	local viewportSize = camera.ViewportSize
+	local cameraScreenPosition = Vector2.new(
+		viewportSize.X / 2,
+		viewportSize.Y / 2
+	)
+
+	self._tracers[object].From = cameraScreenPosition
+	self._tracers[object].To = screenPosition
+	self._tracers[object].Color = color
+	self._tracers[object].Visible = true
 end
 
-function AscendentESP:_drawName(obj, screenPos, size, color)
+function AscendentESP:_drawName(object, screenPosition, size, distance, color)
 	if not self.nameEnabled then
-		if self._names[obj] then self._names[obj].Visible = false end
+		if self._names[object] then self._names[object].Visible = false end
 		return
 	end
 
-	self._names[obj] = self._names[obj] or self:_createDrawing("Text", {
-		Text = obj.Name,
+	self._names[object] = self._names[object] or self:_createDrawing("Text", {
+		Text = object.Name,
 		Color = color,
 		Font = 2,
 		Size = 14,
@@ -134,16 +163,16 @@ function AscendentESP:_drawName(obj, screenPos, size, color)
 		Outline = true
 	})
 
-	self._names[obj].Text = obj.Name
-	self._names[obj].Position = screenPos + Vector2.new(0, -size.Y/2 - 5)
-	self._names[obj].Color = color
-	self._names[obj].Visible = true
+	self._names[object].Text = object.Name .. " [" .. distance .. "m]"
+	self._names[object].Position = screenPosition + Vector2.new(0, -size.Y/2 - 5)
+	self._names[object].Color = color
+	self._names[object].Visible = true
 end
 
 function AscendentESP:_getScreenBox(object)
 	local objectCFrame = object.CFrame
 	local objectSize = object.Size
-	
+
 	local offsets = {-0.5, 0.5}
 	local corners = {}
 
@@ -154,13 +183,13 @@ function AscendentESP:_getScreenBox(object)
 			end
 		end
 	end
-	
+
 	local minX, minY = math.huge, math.huge
 	local maxX, maxY = -math.huge, -math.huge
 
 	for _, corner in next, corners do
 		local screenPosition, onScreen = camera:WorldToViewportPoint(corner)
-		
+
 		if onScreen then
 			minX = math.min(minX, screenPosition.X)
 			minY = math.min(minY, screenPosition.Y)
@@ -170,40 +199,54 @@ function AscendentESP:_getScreenBox(object)
 	end
 
 	if minX == math.huge then
-		return Vector2.new(0, 0)
+		return Vector2.new(0, 0), Vector2.new(0, 0)
 	end
 
 	return Vector2.new(maxX - minX, maxY - minY), Vector2.new((minX + maxX)/2, (minY + maxY)/2)
 end
 
-function AscendentESP:_trackObject(object)
-	local connection
-	connection = runService.RenderStepped:Connect(function()
-		if not self.enabled then
-			if connection then 
-				connection:Disconnect() 
+function AscendentESP:_renderESP()
+	self._connections = self._connections or {}
+
+	local connection = runService.RenderStepped:Connect(function()
+		if not self.enabled then return end
+		if not self._trackedObjects then return end
+
+		local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+		for i = #self._trackedObjects, 1, -1 do
+			local object = self._trackedObjects[i]
+
+			if not object or not object.Parent then
+				self:_cleanup(object)
+				table.remove(self._trackedObjects, i)
+				continue
 			end
-			return
-		end
 
-		if not object or not object.Parent then
-			self:_cleanup(object)
-			return
-		end
+			local color = self.objectColors[object] or self.defaultColor
+			if self.rainbowEnabled then
+				color = self:_getRainbow()
+			end
 
-		local color = self.objectColors[object] or self.defaultColor
-		if self.rainbowEnabled then
-			color = self:_getRainbow()
-		end
+			local size, screenPosition = self:_getScreenBox(object)
 
-		local size, screenPosition = self:_getScreenBox(object)
+			local distance = 0
+			if humanoidRootPart then
+				distance = math.floor((humanoidRootPart.Position - object.Position).Magnitude)
+			end
 
-		if size.X > 0 and size.Y > 0 then
-			self:_drawBox(object, screenPosition, size, color)
-			self:_drawTracer(object, screenPosition, color)
-			self:_drawName(object, screenPosition, size, color)
-		else
-			self:_cleanup(object)
+			if self.maxDistance > 0 and distance > self.maxDistance then
+				self:_cleanup(object)
+				continue
+			end
+
+			if size.X > 0 and size.Y > 0 then
+				self:_drawBox(object, screenPosition, size, color)
+				self:_drawTracer(object, screenPosition, color)
+				self:_drawName(object, screenPosition, size, distance, color)
+			else
+				self:_cleanup(object)
+			end
 		end
 	end)
 
@@ -213,7 +256,6 @@ end
 function AscendentESP:SetColor(objects, color)
 	if typeof(objects) ~= "table" then
 		objects = {objects}
-		self.objectColors[objects] = color
 	end
 
 	for _, object in next, objects do
@@ -225,14 +267,20 @@ function AscendentESP:Setup(objects)
 	if typeof(objects) ~= "table" then
 		objects = {objects}
 	end
-	
+
 	for _, object in next, objects do
-		self:_trackObject(object)
+		if not table.find(self._trackedObjects, object) then
+			table.insert(self._trackedObjects, object)
+		end
 	end
 end
 
 function AscendentESP:Enable()
 	self.enabled = true
+
+	if not self._connections or #self._connections == 0 then
+		self:_renderESP()
+	end
 end
 
 function AscendentESP:Disable()
