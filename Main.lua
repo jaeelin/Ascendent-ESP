@@ -14,6 +14,7 @@ function AscendentESP.new()
 	self.enabled = false
 
 	self.boxEnabled = false
+	self.healthBarEnabled = false
 	self.tracerEnabled = false
 	self.skeletonEnabled = false
 	self.nameEnabled = false
@@ -27,6 +28,8 @@ function AscendentESP.new()
 	self._boxes = {}
 	self._names = {}
 	self._healthbars = {}
+
+	self._connections = {}
 
 	return self
 end
@@ -128,14 +131,47 @@ function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, colo
 	self._boxes[target] = self._boxes[target] or self:_createDrawing("Square", {
 		Color = color,
 		Thickness = 1.5,
-		Transparency = 1,
-		Filled = false
+		Filled = false,
+		Transparency = 1
 	})
-
+	
 	self._boxes[target].Size = Vector2.new(boxWidth, boxHeight)
 	self._boxes[target].Position = Vector2.new(screenPosition.X - boxWidth / 2, screenPosition.Y - boxHeight / 2)
 	self._boxes[target].Color = color
 	self._boxes[target].Visible = true
+end
+
+function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight, color)
+	if not self.healthBarEnabled then
+		if self._healthbars and self._healthbars[target] then
+			self._healthbars[target].Visible = false
+		end
+		
+		return
+	end
+	
+	self._healthbars[target] = self._healthbars[target] or self:_createDrawing("Square", {
+		Color = color,
+		Thickness = 1,
+		Filled = true,
+		Transparency = 1
+	})
+	
+	local humanoid = target.Character and target.Character:FindFirstChild("Humanoid")
+	if not humanoid then
+		self._healthbars[target].Visible = false
+		return
+	end
+
+	local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+	
+	local barX = screenPosition.X + (boxWidth / 2) + 4
+	local barY = screenPosition.Y - boxHeight / 2 + (boxHeight * (1 - healthPercent))
+
+	self._healthbars[target].Size = Vector2.new(3, boxHeight * healthPercent)
+	self._healthbars[target].Position = Vector2.new(barX, barY)
+	self._healthbars[target].Color = color
+	self._healthbars[target].Visible = true
 end
 
 function AscendentESP:_drawTracer(target, screenPosition, color)
@@ -143,7 +179,6 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
-
 		return
 	end
 
@@ -152,10 +187,19 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 		Thickness = 1.5
 	})
 
-	self._tracers[target].From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
-	self._tracers[target].To = Vector2.new(screenPosition.X, screenPosition.Y)
-	self._tracers[target].Color = color
-	self._tracers[target].Visible = true
+	local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if humanoidRootPart then
+		local humanoidRootPartScreenPosition, onScreen = camera:WorldToViewportPoint(humanoidRootPart.Position)
+		if onScreen then
+			self._tracers[target].From = Vector2.new(humanoidRootPartScreenPosition.X, humanoidRootPartScreenPosition.Y)
+			self._tracers[target].To = Vector2.new(screenPosition.X, screenPosition.Y)
+			self._tracers[target].Color = color
+			self._tracers[target].Visible = true
+			return
+		end
+	end
+
+	self._tracers[target].Visible = false
 end
 
 function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, color)
@@ -242,32 +286,41 @@ function AscendentESP:setupESP(target)
 	if target == player then return end
 
 	local function setupCharacter()
-		runService.RenderStepped:Connect(function()
-			if not self.enabled then return end
+		local connection
+		connection = runService.RenderStepped:Connect(function()
+			if not self.enabled then 
+				if connection then connection:Disconnect() end
+				return 
+			end
 
 			local character = target.Character
-			if not character or not character.Parent then self:_cleanup(target) return end
+			if not character or not character.Parent then
+				self:_cleanup(target)
+				return
+			end
 
 			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-			if not humanoidRootPart then return end
-
-			local humanoid = character:FindFirstChild("Humanoid")
-			if not humanoid or humanoid.Health <= 0 then self:_cleanup(target) return end
+			local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+			if not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
+				self:_cleanup(target)
+				return
+			end
 
 			local color = self.targetColors[target] or self.defaultColor
 			if self.rainbowEnabled then color = self:_getRainbow() end
 
-			local screenPosition, onScreen = camera:WorldToViewportPoint(humanoidRootPart.Position)
-			local headPosition = camera:WorldToViewportPoint(humanoidRootPart.Position + Vector3.new(0, 3, 0))
-			local footPosition = camera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0, 3, 0))
-			local boxHeight = footPosition.Y - headPosition.Y
+			local headPos, headOnScreen = camera:WorldToViewportPoint(humanoidRootPart.Position + Vector3.new(0, 3, 0))
+			local footPos, footOnScreen = camera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0, 3, 0))
+			local boxHeight = footPos.Y - headPos.Y
 			local boxWidth = boxHeight / 1.5
+			local boxCenter = Vector2.new((headPos.X + footPos.X)/2, (headPos.Y + footPos.Y)/2)
 			local distance = math.floor((camera.CFrame.Position - humanoidRootPart.Position).Magnitude)
 
-			if onScreen then
-				self:_drawBox(target, screenPosition, boxWidth, boxHeight, color)
-				self:_drawTracer(target, screenPosition, color)
-				self:_drawName(target, screenPosition, boxHeight, distance, color)
+			if headOnScreen or footOnScreen then
+				self:_drawBox(target, boxCenter, boxWidth, boxHeight, color)
+				self:_drawHealthBar(target, boxCenter, boxWidth, boxHeight, color)
+				self:_drawTracer(target, boxCenter, color)
+				self:_drawName(target, boxCenter, boxHeight, distance, color)
 				self:_drawSkeleton(target, character, color)
 			else
 				self:_cleanup(target)
@@ -290,8 +343,6 @@ function AscendentESP:Enable()
 	for _, target in next, playerService:GetPlayers() do
 		self:setupESP(target)
 	end
-
-	self._connections = self._connections or {}
 
 	table.insert(self._connections, playerService.PlayerAdded:Connect(function(target)
 		self:setupESP(target)
