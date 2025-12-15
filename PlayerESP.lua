@@ -13,55 +13,29 @@ function AscendentESP.new(Config)
 
 	self.enabled = false
 
-	self.boxEnabled = Config and Config.Box or false
-	self.healthBarEnabled = Config and Config.HealthBar or false
-	self.tracerEnabled = Config and Config.Tracer or false
-	self.skeletonEnabled = Config and Config.Skeleton or false
-	self.nameEnabled = Config and Config.Name or false
-	self.rainbowEnabled = Config and Config.Rainbow or false
+	self.Box = Config and Config.Box or false
+	self.HealthBar = Config and Config.HealthBar or false
+	self.TracerEnabled = Config and Config.Tracer or false
+	self.Skeleton = Config and Config.Skeleton or false
+	self.Name = Config and Config.Name or false
+	self.Arrows = Config and Config.Arrows or false
+	self.Rainbow = Config and Config.Rainbow or false
 
-	self.defaultColor = Config and Config.DefaultColor or Color3.fromRGB(250, 150, 255)
+	self.DefaultColor = Config and Config.DefaultColor or Color3.fromRGB(250, 150, 255)
 	self.targetColors = {}
 	
-	self.maxDistance = Config and Config.MaxDistance or 300
+	self.MaxDistance = Config and Config.MaxDistance or 300
 
-	self._skeletons = {}
-	self._tracers = {}
 	self._boxes = {}
-	self._names = {}
 	self._healthbars = {}
+	self._tracers = {}
+	self._skeletons = {}
+	self._names = {}
+	self._arrows = {}
 	
 	self._activeTargets = {}
 
 	self._connections = {}
-	
-	setmetatable(self, {
-		__index = function(object, key)
-			if key == "Box" then return object.boxEnabled end
-			if key == "HealthBar" then return object.healthBarEnabled end
-			if key == "Tracer" then return object.tracerEnabled end
-			if key == "Skeleton" then return object.skeletonEnabled end
-			if key == "Name" then return object.nameEnabled end
-			if key == "Rainbow" then return object.rainbowEnabled end
-			if key == "DefaultColor" then return object.defaultColor end
-			if key == "MaxDistance" then return object.maxDistance end
-			
-			return rawget(AscendentESP, key)
-		end,
-
-		__newindex = function(object, key, value)
-			if key == "Box" then object.boxEnabled = value return end
-			if key == "HealthBar" then object.healthBarEnabled = value return end
-			if key == "Tracer" then object.tracerEnabled = value return end
-			if key == "Skeleton" then object.skeletonEnabled = value return end
-			if key == "Name" then object.nameEnabled = value return end
-			if key == "Rainbow" then object.rainbowEnabled = value return end
-			if key == "DefaultColor" then object.defaultColor = value return end
-			if key == "MaxDistance" then object.maxDistance = value return end
-			
-			rawset(object, key, value)
-		end
-	})
 
 	return self
 end
@@ -108,51 +82,51 @@ function AscendentESP:_drawBone(target, index, pointA, pointB, color)
 end
 
 function AscendentESP:_cleanup(target)
-	if self._boxes[target] then
-		self._boxes[target].Visible = false
+	for _, table in next, {self._boxes, self._healthbars, self._tracers, self._names, self._arrows} do
+		if table[target] then
+			if type(table[target]) == "table" then
+				for _, obj in next, table[target] do 
+					obj.Visible = false 
+				end
+			else
+				table[target].Visible = false
+			end
+		end
 	end
-
-	if self._healthbars[target] then
-		self._healthbars[target].Visible = false
-	end
-
-	if self._tracers[target] then
-		self._tracers[target].Visible = false
-	end
-
-	if self._names[target] then
-		self._names[target].Visible = false
-	end
-
+	
 	if self._skeletons[target] then
-		for _, line in next, self._skeletons[target] do
-			line.Visible = false
+		for _, line in next, self._skeletons[target] do 
+			line.Visible = false 
 		end
 	end
 end
 
 function AscendentESP:_removeESP()
-	for _, table in next, {self._tracers, self._boxes, self._names, self._healthbars} do
+	local allTables = {self._tracers, self._boxes, self._names, self._healthbars, self._arrows}
+
+	for _, table in next, allTables do
 		for _, object in next, table do
-			if object then 
-				object:Remove()
+			if type(object) == "table" then
+				for _, subObject in next, object do
+					subObject.Visible = false
+				end
+			elseif object then
+				object.Visible = false
 			end
 		end
 	end
 
 	for _, skeleton in next, self._skeletons do
 		for _, line in next, skeleton do
-			if line then 
-				line:Remove() 
-			end
+			line.Visible = false
 		end
 	end
 
-	self._tracers, self._boxes, self._names, self._healthbars, self._skeletons = {}, {}, {}, {}, {}
+	self._tracers, self._boxes, self._names, self._healthbars, self._skeletons, self._arrows = {}, {}, {}, {}, {}, {}
 end
 
 function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, color)
-	if not self.boxEnabled then
+	if not self.Box then
 		if self._boxes[target] then
 			self._boxes[target].Visible = false
 		end
@@ -174,7 +148,7 @@ function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, colo
 end
 
 function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight, color)
-	if not self.healthBarEnabled then
+	if not self.HealthBar then
 		if self._healthbars and self._healthbars[target] then
 			self._healthbars[target].Visible = false
 		end
@@ -207,7 +181,7 @@ function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight
 end
 
 function AscendentESP:_drawTracer(target, screenPosition, color)
-	if not self.tracerEnabled then
+	if not self.TracerEnabled then
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
@@ -232,7 +206,7 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 end
 
 function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, color)
-	if not self.nameEnabled then
+	if not self.Name then
 		if self._names[target] then
 			self._names[target].Visible = false
 		end
@@ -256,7 +230,7 @@ function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, col
 end
 
 function AscendentESP:_drawSkeleton(target, character, color)
-	if not self.skeletonEnabled then return end
+	if not self.Skeleton then return end
 
 	local function getPart(part)
 		return character:FindFirstChild(part)
@@ -311,6 +285,66 @@ function AscendentESP:_drawSkeleton(target, character, color)
 	end
 end
 
+function AscendentESP:_drawArrows(target, screenPos, color)
+	if not self.Arrows then
+		if self._arrows[target] then
+			for _, line in next, self._arrows[target] do
+				line.Visible = false
+			end
+		end
+		
+		return
+	end
+	
+	local character = target.Character
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+	
+	self._arrows[target] = self._arrows[target] or {}
+	
+	local viewportSize = camera.ViewportSize
+	local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+	
+	local directionVector = screenPos - screenCenter
+	
+	local toTarget = (character.HumanoidRootPart.Position - camera.CFrame.Position).Unit
+	if camera.CFrame.LookVector:Dot(toTarget) < 0 then
+		directionVector = -directionVector
+	end
+	
+	local directionUnit = directionVector.Unit
+	
+	local edgePadding = 20
+	local halfScreenX, halfScreenY = viewportSize.X / 2 - edgePadding, viewportSize.Y / 2 - edgePadding
+	
+	local scaleX = halfScreenX / math.abs(directionUnit.X)
+	local scaleY = halfScreenY / math.abs(directionUnit.Y)
+	local scale = math.min(scaleX, scaleY)
+	
+	local arrowPos = screenCenter + directionUnit * scale
+	
+	local arrowSize = 10
+	local angle = math.atan2(directionUnit.Y, directionUnit.X)
+	local point1 = arrowPos + Vector2.new(math.cos(angle) * arrowSize, math.sin(angle) * arrowSize)
+	local point2 = arrowPos + Vector2.new(math.cos(angle + 2.5) * arrowSize, math.sin(angle + 2.5) * arrowSize)
+	local point3 = arrowPos + Vector2.new(math.cos(angle - 2.5) * arrowSize, math.sin(angle - 2.5) * arrowSize)
+	
+	for i, point in next, {point1, point2, point3} do
+		self._arrows[target][i] = self._arrows[target][i] or self:_createDrawing("Line", {
+			Color = color,
+			Thickness = 1.5
+		})
+	end
+	
+	self._arrows[target][1].From, self._arrows[target][1].To = point1, point2
+	self._arrows[target][2].From, self._arrows[target][2].To = point2, point3
+	self._arrows[target][3].From, self._arrows[target][3].To = point3, point1
+	
+	for _, line in next, self._arrows[target] do
+		line.Color = color
+		line.Visible = true
+	end
+end
+
 function AscendentESP:_updateTargetESP(target)
 	local character = target.Character
 	if not character or not character.Parent then
@@ -325,8 +359,8 @@ function AscendentESP:_updateTargetESP(target)
 		return
 	end
 
-	local color = self.targetColors[target] or self.defaultColor
-	if self.rainbowEnabled then
+	local color = self.targetColors[target] or self.DefaultColor
+	if self.Rainbow then
 		color = self:_getRainbow()
 	end
 
@@ -336,11 +370,6 @@ function AscendentESP:_updateTargetESP(target)
 	local footPosition, footOnScreen = camera:WorldToViewportPoint(
 		humanoidRootPart.Position - Vector3.new(0, 3, 0)
 	)
-
-	if not (headOnScreen or footOnScreen) then
-		self:_cleanup(target)
-		return
-	end
 
 	local boxHeight = footPosition.Y - headPosition.Y
 	local boxWidth = boxHeight / 1.5
@@ -355,9 +384,21 @@ function AscendentESP:_updateTargetESP(target)
 		distance = math.floor((localRoot.Position - humanoidRootPart.Position).Magnitude)
 	end
 
-	if self.maxDistance > 0 and distance > self.maxDistance then
+	if self.MaxDistance > 0 and distance > self.MaxDistance then
 		self:_cleanup(target)
 		return
+	end
+	
+	if not (headOnScreen or footOnScreen) then
+		self:_cleanup(target)
+		self:_drawArrows(target, boxCenter, color)
+		return
+	else
+		if self._arrows[target] then
+			for _, line in next, self._arrows[target] do
+				line.Visible = false
+			end
+		end
 	end
 
 	self:_drawBox(target, boxCenter, boxWidth, boxHeight, color)
