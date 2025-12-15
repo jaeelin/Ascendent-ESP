@@ -9,6 +9,8 @@
 ## Features
 - Box ESP
 
+- Arrow ESP
+
 - Health Bar ESP
 
 - Tracers
@@ -32,6 +34,7 @@ Then, set up your configurations.
 ```lua
 local NewESP = AscendentESP.new({
 	Box = true,
+	Arrows = true,
 	HealthBar = true,
 	Tracer = true,
 	Skeleton = true,
@@ -46,6 +49,7 @@ To change the visibility of the drawing objects later, simply set their values t
 
 ```lua
 NewESP.Box = false
+NewESP.Arrows = false
 NewESP.HealthBar = false
 NewESP.Tracer = false
 NewESP.Skeleton = false
@@ -66,6 +70,7 @@ local AscendentESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/
 
 local NewESP = AscendentESP.new({
 	Box = true,
+	Arrows = true,
 	HealthBar = true,
 	Tracer = true,
 	Skeleton = true,
