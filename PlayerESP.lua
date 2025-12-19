@@ -15,7 +15,7 @@ function AscendentESP.new(Config)
 
 	self.Box = Config and Config.Box or false
 	self.HealthBar = Config and Config.HealthBar or false
-	self.TracerEnabled = Config and Config.Tracer or false
+	self.Tracer = Config and Config.Tracer or false
 	self.Skeleton = Config and Config.Skeleton or false
 	self.Name = Config and Config.Name or false
 	self.Arrows = Config and Config.Arrows or false
@@ -181,7 +181,7 @@ function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight
 end
 
 function AscendentESP:_drawTracer(target, screenPosition, color)
-	if not self.TracerEnabled then
+	if not self.Tracer then
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
