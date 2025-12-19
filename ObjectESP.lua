@@ -13,15 +13,15 @@ function AscendentESP.new(config)
 
 	self.enabled = false
 
-	self.boxEnabled = config and config.Box or false
-	self.tracerEnabled = config and config.Tracer or false
-	self.nameEnabled = config and config.Name or false
-	self.rainbowEnabled = config and config.Rainbow or false
+	self.Box = config and config.Box or false
+	self.Tracer = config and config.Tracer or false
+	self.Name = config and config.Name or false
+	self.Rainbow = config and config.Rainbow or false
 
-	self.defaultColor = config and config.DefaultColor or Color3.fromRGB(250, 150, 255)
+	self.DefaultColor = config and config.DefaultColor or Color3.fromRGB(250, 150, 255)
 	self.objectColors = {}
 
-	self.maxDistance = config and config.MaxDistance or 300
+	self.MaxDistance = config and config.MaxDistance or 300
 
 	self._tracers = {}
 	self._boxes = {}
@@ -30,30 +30,6 @@ function AscendentESP.new(config)
 	self._trackedObjects = {}
 
 	self._connections = {}
-
-	setmetatable(self, {
-		__index = function(object, key)
-			if key == "Box" then return object.boxEnabled end
-			if key == "Tracer" then return object.tracerEnabled end
-			if key == "Name" then return object.nameEnabled end
-			if key == "Rainbow" then return object.rainbowEnabled end
-			if key == "DefaultColor" then return object.defaultColor end
-			if key == "MaxDistance" then return object.maxDistance end
-
-			return rawget(AscendentESP, key)
-		end,
-
-		__newindex = function(object, key, value)
-			if key == "Box" then object.boxEnabled = value return end
-			if key == "Tracer" then object.tracerEnabled = value return end
-			if key == "Name" then object.nameEnabled = value return end
-			if key == "Rainbow" then object.rainbowEnabled = value return end
-			if key == "DefaultColor" then object.defaultColor = value return end
-			if key == "MaxDistance" then object.maxDistance = value return end
-
-			rawset(object, key, value)
-		end
-	})
 
 	return self
 end
@@ -104,7 +80,7 @@ function AscendentESP:_removeESP()
 end
 
 function AscendentESP:_drawBox(object, screenPosition, size, color)
-	if not self.boxEnabled then
+	if not self.Box then
 		if self._boxes[object] then self._boxes[object].Visible = false end
 		return
 	end
@@ -123,7 +99,7 @@ function AscendentESP:_drawBox(object, screenPosition, size, color)
 end
 
 function AscendentESP:_drawTracer(object, screenPosition, color)
-	if not self.tracerEnabled then
+	if not self.Tracer then
 		if self._tracers[object] then
 			self._tracers[object].Visible = false
 		end
@@ -149,7 +125,7 @@ function AscendentESP:_drawTracer(object, screenPosition, color)
 end
 
 function AscendentESP:_drawName(object, screenPosition, size, distance, color)
-	if not self.nameEnabled then
+	if not self.Name then
 		if self._names[object] then self._names[object].Visible = false end
 		return
 	end
@@ -223,8 +199,8 @@ function AscendentESP:_renderESP()
 				continue
 			end
 
-			local color = self.objectColors[object] or self.defaultColor
-			if self.rainbowEnabled then
+			local color = self.objectColors[object] or self.DefaultColor
+			if self.Rainbow then
 				color = self:_getRainbow()
 			end
 
@@ -235,7 +211,7 @@ function AscendentESP:_renderESP()
 				distance = math.floor((humanoidRootPart.Position - object.Position).Magnitude)
 			end
 
-			if self.maxDistance > 0 and distance > self.maxDistance then
+			if self.MaxDistance > 0 and distance > self.MaxDistance then
 				self:_cleanup(object)
 				continue
 			end
