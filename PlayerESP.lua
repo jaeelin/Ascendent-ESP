@@ -15,7 +15,7 @@ function AscendentESP.new(Config)
 
 	self.Box = Config and Config.Box or false
 	self.HealthBar = Config and Config.HealthBar or false
-	self.Tracer = Config and Config.Tracer or false
+	self.TracerEnabled = Config and Config.Tracer or false
 	self.Skeleton = Config and Config.Skeleton or false
 	self.Name = Config and Config.Name or false
 	self.Arrows = Config and Config.Arrows or false
@@ -181,10 +181,11 @@ function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight
 end
 
 function AscendentESP:_drawTracer(target, screenPosition, color)
-	if not self.Tracer then
+	if not self.TracerEnabled then
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
+		
 		return
 	end
 
@@ -230,7 +231,15 @@ function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, col
 end
 
 function AscendentESP:_drawSkeleton(target, character, color)
-	if not self.Skeleton then return end
+	if not self.Skeleton then
+		for _, skeleton in next, self._skeletons do
+			for _, line in next, skeleton do
+				line.Visible = false
+			end
+		end
+
+		return
+	end
 
 	local function getPart(part)
 		return character:FindFirstChild(part)
