@@ -8,6 +8,8 @@ local camera = workspace.CurrentCamera
 local AscendentESP = {}
 AscendentESP.__index = AscendentESP
 
+AscendentESP.Version = "1.0.0"
+
 function AscendentESP.new(Config)
 	local self = setmetatable({}, AscendentESP)
 
@@ -20,9 +22,10 @@ function AscendentESP.new(Config)
 	self.Name = Config and Config.Name or false
 	self.Arrows = Config and Config.Arrows or false
 	self.Rainbow = Config and Config.Rainbow or false
+	
+	self.TracerOrigin = Config and Config.TracerOrigin or "Character"
 
-	self.DefaultColor = Config and Config.DefaultColor or Color3.fromRGB(250, 150, 255)
-	self.targetColors = {}
+	self.DefaultColor = Config and Config.DefaultColor or Color3.fromRGB(180, 255, 180)
 
 	self.MaxDistance = Config and Config.MaxDistance or 300
 
@@ -32,6 +35,8 @@ function AscendentESP.new(Config)
 	self._skeletons = {}
 	self._names = {}
 	self._arrows = {}
+	
+	self.targetColors = {}
 
 	self._activeTargets = {}
 
@@ -65,39 +70,47 @@ function AscendentESP:_drawBone(target, index, pointA, pointB, color)
 
 	local pointAPosition, aOnScreen = camera:WorldToViewportPoint(pointA.Position)
 	local pointBPosition, bOnScreen = camera:WorldToViewportPoint(pointB.Position)
+	
+	self._skeletons[target] = self._skeletons[target] or {}
+	self._skeletons[target][index] = self._skeletons[target][index] or self:_createDrawing("Line", {
+		Thickness = 1.5,
+		Color = color,
+		Transparency = 1
+	})
 
-	if aOnScreen and bOnScreen then
-		self._skeletons[target] = self._skeletons[target] or {}
-		self._skeletons[target][index] = self._skeletons[target][index] or self:_createDrawing("Line", {
-			Thickness = 1.5,
-			Color = color,
-			Transparency = 1
-		})
-
-		local line = self._skeletons[target][index]
-		line.From = Vector2.new(pointAPosition.X, pointAPosition.Y)
-		line.To = Vector2.new(pointBPosition.X, pointBPosition.Y)
-		line.Visible = true
-	end
+	local line = self._skeletons[target][index]
+	line.From = Vector2.new(pointAPosition.X, pointAPosition.Y)
+	line.To = Vector2.new(pointBPosition.X, pointBPosition.Y)
+	
+	line.Visible = aOnScreen or bOnScreen
+	line.Color = color
 end
 
 function AscendentESP:_cleanup(target)
-	for _, table in next, {self._boxes, self._healthbars, self._tracers, self._names, self._arrows} do
-		if table[target] then
-			if type(table[target]) == "table" then
-				for _, obj in next, table[target] do 
-					obj.Visible = false 
+	for _, espTable in next, {self._boxes, self._healthbars, self._tracers, self._names, self._arrows} do
+		local object = espTable[target]
+		if object then
+			if type(object) == "table" then
+				for _, obj in next, object do
+					if obj then
+						obj:Remove()
+					end
 				end
 			else
-				table[target].Visible = false
+				object:Remove()
 			end
+			espTable[target] = nil
 		end
 	end
 
 	if self._skeletons[target] then
-		for _, line in next, self._skeletons[target] do 
-			line.Visible = false 
+		for _, line in next, self._skeletons[target] do
+			if line then
+				line:Remove()
+			end
 		end
+		
+		self._skeletons[target] = nil
 	end
 end
 
@@ -147,36 +160,42 @@ function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, colo
 	self._boxes[target].Visible = true
 end
 
-function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight, color)
+function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight)
 	if not self.HealthBar then
 		if self._healthbars and self._healthbars[target] then
 			self._healthbars[target].Visible = false
 		end
-
 		return
 	end
 
 	self._healthbars[target] = self._healthbars[target] or self:_createDrawing("Square", {
-		Color = color,
+		Color = Color3.fromRGB(150, 255, 150),
 		Thickness = 1,
 		Filled = true,
 		Transparency = 1
 	})
 
 	local humanoid = target.Character and target.Character:FindFirstChild("Humanoid")
-	if not humanoid then
+	if not humanoid or humanoid.Health <= 0 then
 		self._healthbars[target].Visible = false
 		return
 	end
 
 	local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
 
-	local barX = screenPosition.X + (boxWidth / 2) + 4
+	local healthColor
+	if healthPercent <= 0.5 then
+		healthColor = Color3.fromRGB(255, 150, 150):Lerp(Color3.fromRGB(255, 220, 150), healthPercent * 2)
+	else
+		healthColor = Color3.fromRGB(255, 220, 150):Lerp(Color3.fromRGB(150, 255, 150), (healthPercent - 0.5) * 2)
+	end
+
+	local barX = screenPosition.X + (boxWidth / 2) + 2
 	local barY = screenPosition.Y - boxHeight / 2 + (boxHeight * (1 - healthPercent))
 
 	self._healthbars[target].Size = Vector2.new(3, boxHeight * healthPercent)
 	self._healthbars[target].Position = Vector2.new(barX, barY)
-	self._healthbars[target].Color = color
+	self._healthbars[target].Color = healthColor
 	self._healthbars[target].Visible = true
 end
 
@@ -185,7 +204,6 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
-
 		return
 	end
 
@@ -195,10 +213,29 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 	})
 
 	local viewportSize = camera.ViewportSize
-	local cameraScreenPosition = Vector2.new(
-		viewportSize.X / 2,
-		viewportSize.Y / 2
-	)
+	local cameraScreenPosition
+
+	if self.TracerOrigin == "Character" then
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			viewportSize.Y / 2
+		)
+	elseif self.TracerOrigin == "Top" then
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			0
+		)
+	elseif self.TracerOrigin == "Bottom" then
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			viewportSize.Y
+		)
+	else
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			viewportSize.Y / 2
+		)
+	end
 
 	self._tracers[target].From = cameraScreenPosition
 	self._tracers[target].To = Vector2.new(screenPosition.X, screenPosition.Y)
@@ -299,14 +336,13 @@ function AscendentESP:_drawSkeleton(target, character, color)
 	end
 end
 
-function AscendentESP:_drawArrows(target, screenPos, color)
+function AscendentESP:_drawArrows(target, _, color)
 	if not self.Arrows then
 		if self._arrows[target] then
 			for _, line in next, self._arrows[target] do
 				line.Visible = false
 			end
 		end
-
 		return
 	end
 
@@ -317,30 +353,30 @@ function AscendentESP:_drawArrows(target, screenPos, color)
 
 	local viewportSize = camera.ViewportSize
 	local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+	
+	local targetPosition = character.HumanoidRootPart.Position
+	local cameraPosition = camera.CFrame.Position
+	local toTarget = (targetPosition - cameraPosition)
 
-	local directionVector = screenPos - screenCenter
+	local right = camera.CFrame.RightVector
+	local up = camera.CFrame.UpVector
+	
+	local xDir = toTarget:Dot(right)
+	local yDir = -toTarget:Dot(up)
 
-	local toTarget = (character.HumanoidRootPart.Position - camera.CFrame.Position).Unit
-	if camera.CFrame.LookVector:Dot(toTarget) < 0 then
-		directionVector = -directionVector
+	local direction = Vector2.new(xDir, yDir)
+	if direction.Magnitude > 0 then
+		direction = direction.Unit
 	end
 
-	local directionUnit = directionVector.Unit
-
-	local edgePadding = 20
-	local halfScreenX, halfScreenY = viewportSize.X / 2 - edgePadding, viewportSize.Y / 2 - edgePadding
-
-	local scaleX = halfScreenX / math.abs(directionUnit.X)
-	local scaleY = halfScreenY / math.abs(directionUnit.Y)
-	local scale = math.min(scaleX, scaleY)
-
-	local arrowPos = screenCenter + directionUnit * scale
+	local arrowDistance = 50
+	local arrowPosition = screenCenter + direction * arrowDistance
 
 	local arrowSize = 10
-	local angle = math.atan2(directionUnit.Y, directionUnit.X)
-	local point1 = arrowPos + Vector2.new(math.cos(angle) * arrowSize, math.sin(angle) * arrowSize)
-	local point2 = arrowPos + Vector2.new(math.cos(angle + 2.5) * arrowSize, math.sin(angle + 2.5) * arrowSize)
-	local point3 = arrowPos + Vector2.new(math.cos(angle - 2.5) * arrowSize, math.sin(angle - 2.5) * arrowSize)
+	local angle = math.atan2(direction.Y, direction.X)
+	local point1 = arrowPosition + Vector2.new(math.cos(angle) * arrowSize, math.sin(angle) * arrowSize)
+	local point2 = arrowPosition + Vector2.new(math.cos(angle + 2.5) * arrowSize, math.sin(angle + 2.5) * arrowSize)
+	local point3 = arrowPosition + Vector2.new(math.cos(angle - 2.5) * arrowSize, math.sin(angle - 2.5) * arrowSize)
 
 	for i, point in next, {point1, point2, point3} do
 		self._arrows[target][i] = self._arrows[target][i] or self:_createDrawing("Line", {
