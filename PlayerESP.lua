@@ -23,7 +23,7 @@ function AscendentESP.new(Config)
 
 	self.DefaultColor = Config and Config.DefaultColor or Color3.fromRGB(250, 150, 255)
 	self.targetColors = {}
-	
+
 	self.MaxDistance = Config and Config.MaxDistance or 300
 
 	self._boxes = {}
@@ -32,7 +32,7 @@ function AscendentESP.new(Config)
 	self._skeletons = {}
 	self._names = {}
 	self._arrows = {}
-	
+
 	self._activeTargets = {}
 
 	self._connections = {}
@@ -52,11 +52,11 @@ end
 
 function AscendentESP:_getRainbow()
 	local stored = tick()
-	
+
 	local hue = (math.sin(stored * 0.3) * 0.5 + 0.5)
 	local saturation = 0.4 + 0.1 * math.sin(stored * 0.2 + 1)
 	local value = 0.85 + 0.1 * math.sin(stored * 0.25 + 2)
-	
+
 	return Color3.fromHSV(hue, saturation, value)
 end
 
@@ -73,7 +73,7 @@ function AscendentESP:_drawBone(target, index, pointA, pointB, color)
 			Color = color,
 			Transparency = 1
 		})
-		
+
 		local line = self._skeletons[target][index]
 		line.From = Vector2.new(pointAPosition.X, pointAPosition.Y)
 		line.To = Vector2.new(pointBPosition.X, pointBPosition.Y)
@@ -93,7 +93,7 @@ function AscendentESP:_cleanup(target)
 			end
 		end
 	end
-	
+
 	if self._skeletons[target] then
 		for _, line in next, self._skeletons[target] do 
 			line.Visible = false 
@@ -140,7 +140,7 @@ function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, colo
 		Filled = false,
 		Transparency = 1
 	})
-	
+
 	self._boxes[target].Size = Vector2.new(boxWidth, boxHeight)
 	self._boxes[target].Position = Vector2.new(screenPosition.X - boxWidth / 2, screenPosition.Y - boxHeight / 2)
 	self._boxes[target].Color = color
@@ -152,17 +152,17 @@ function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight
 		if self._healthbars and self._healthbars[target] then
 			self._healthbars[target].Visible = false
 		end
-		
+
 		return
 	end
-	
+
 	self._healthbars[target] = self._healthbars[target] or self:_createDrawing("Square", {
 		Color = color,
 		Thickness = 1,
 		Filled = true,
 		Transparency = 1
 	})
-	
+
 	local humanoid = target.Character and target.Character:FindFirstChild("Humanoid")
 	if not humanoid then
 		self._healthbars[target].Visible = false
@@ -170,7 +170,7 @@ function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight
 	end
 
 	local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-	
+
 	local barX = screenPosition.X + (boxWidth / 2) + 4
 	local barY = screenPosition.Y - boxHeight / 2 + (boxHeight * (1 - healthPercent))
 
@@ -185,7 +185,7 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
-		
+
 		return
 	end
 
@@ -242,9 +242,14 @@ function AscendentESP:_drawSkeleton(target, character, color)
 	end
 
 	local function getPart(part)
-		return character:FindFirstChild(part)
+		local object = character:FindFirstChild(part)
+		if object and object:IsA("BasePart") then
+			return object
+		end
+		
+		return nil
 	end
-
+	
 	local torso = getPart("Torso") or getPart("UpperTorso")
 	local lowerTorso = getPart("LowerTorso")
 	local root = torso or lowerTorso
@@ -301,53 +306,53 @@ function AscendentESP:_drawArrows(target, screenPos, color)
 				line.Visible = false
 			end
 		end
-		
+
 		return
 	end
-	
+
 	local character = target.Character
 	if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-	
+
 	self._arrows[target] = self._arrows[target] or {}
-	
+
 	local viewportSize = camera.ViewportSize
 	local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-	
+
 	local directionVector = screenPos - screenCenter
-	
+
 	local toTarget = (character.HumanoidRootPart.Position - camera.CFrame.Position).Unit
 	if camera.CFrame.LookVector:Dot(toTarget) < 0 then
 		directionVector = -directionVector
 	end
-	
+
 	local directionUnit = directionVector.Unit
-	
+
 	local edgePadding = 20
 	local halfScreenX, halfScreenY = viewportSize.X / 2 - edgePadding, viewportSize.Y / 2 - edgePadding
-	
+
 	local scaleX = halfScreenX / math.abs(directionUnit.X)
 	local scaleY = halfScreenY / math.abs(directionUnit.Y)
 	local scale = math.min(scaleX, scaleY)
-	
+
 	local arrowPos = screenCenter + directionUnit * scale
-	
+
 	local arrowSize = 10
 	local angle = math.atan2(directionUnit.Y, directionUnit.X)
 	local point1 = arrowPos + Vector2.new(math.cos(angle) * arrowSize, math.sin(angle) * arrowSize)
 	local point2 = arrowPos + Vector2.new(math.cos(angle + 2.5) * arrowSize, math.sin(angle + 2.5) * arrowSize)
 	local point3 = arrowPos + Vector2.new(math.cos(angle - 2.5) * arrowSize, math.sin(angle - 2.5) * arrowSize)
-	
+
 	for i, point in next, {point1, point2, point3} do
 		self._arrows[target][i] = self._arrows[target][i] or self:_createDrawing("Line", {
 			Color = color,
 			Thickness = 1.5
 		})
 	end
-	
+
 	self._arrows[target][1].From, self._arrows[target][1].To = point1, point2
 	self._arrows[target][2].From, self._arrows[target][2].To = point2, point3
 	self._arrows[target][3].From, self._arrows[target][3].To = point3, point1
-	
+
 	for _, line in next, self._arrows[target] do
 		line.Color = color
 		line.Visible = true
@@ -397,7 +402,7 @@ function AscendentESP:_updateTargetESP(target)
 		self:_cleanup(target)
 		return
 	end
-	
+
 	if not (headOnScreen or footOnScreen) then
 		self:_cleanup(target)
 		self:_drawArrows(target, boxCenter, color)
@@ -419,18 +424,18 @@ end
 
 function AscendentESP:setupESP(target)
 	if target == player then return end
-	
+
 	self._activeTargets[target] = true
 
 	if not self._renderConnection then
 		self._renderConnection = runService.RenderStepped:Connect(function()
 			if not self.enabled then return end
-			
+
 			for activeTarget in next, self._activeTargets do
 				self:_updateTargetESP(activeTarget)
 			end
 		end)
-		
+
 		table.insert(self._connections, self._renderConnection)
 	end
 end
@@ -449,7 +454,7 @@ function AscendentESP:Enable()
 	table.insert(self._connections, playerService.PlayerAdded:Connect(function(target)
 		self:setupESP(target)
 	end))
-	
+
 	table.insert(self._connections, playerService.PlayerRemoving:Connect(function(target)
 		self._activeTargets[target] = nil
 		self:_cleanup(target)
