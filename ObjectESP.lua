@@ -5,27 +5,32 @@ local player = playerService.LocalPlayer
 
 local camera = workspace.CurrentCamera
 
-local AscendentESP = {}
-AscendentESP.__index = AscendentESP
+local ObjectESP = {}
+ObjectESP.__index = ObjectESP
 
-function AscendentESP.new(config)
-	local self = setmetatable({}, AscendentESP)
+ObjectESP.Version = "1.0.1"
+
+function ObjectESP.new(Config)
+	local self = setmetatable({}, ObjectESP)
 
 	self.enabled = false
+	
+	self.Box = Config and Config.Box or false
+	self.Tracer = Config and Config.Tracer or false
+	self.Name = Config and Config.Name or false
+	self.Rainbow = Config and Config.Rainbow or false
+	
+	self.TracerOrigin = Config and Config.TracerOrigin or "Character"
 
-	self.Box = config and config.Box or false
-	self.Tracer = config and config.Tracer or false
-	self.Name = config and config.Name or false
-	self.Rainbow = config and config.Rainbow or false
+	self.DefaultColor = Config and Config.DefaultColor or Color3.fromRGB(255, 255, 255)
 
-	self.DefaultColor = config and config.DefaultColor or Color3.fromRGB(250, 150, 255)
-	self.objectColors = {}
-
-	self.MaxDistance = config and config.MaxDistance or 300
-
-	self._tracers = {}
+	self.MaxDistance = Config and Config.MaxDistance or 300
+	
 	self._boxes = {}
+	self._tracers = {}
 	self._names = {}
+	
+	self.objectColors = {}
 
 	self._trackedObjects = {}
 
@@ -34,7 +39,7 @@ function AscendentESP.new(config)
 	return self
 end
 
-function AscendentESP:_createDrawing(type, properties)
+function ObjectESP:_createDrawing(type, properties)
 	local drawing = Drawing.new(type)
 
 	for property, value in next, properties do
@@ -44,7 +49,7 @@ function AscendentESP:_createDrawing(type, properties)
 	return drawing
 end
 
-function AscendentESP:_getRainbow()
+function ObjectESP:_getRainbow()
 	local stored = tick()
 
 	local hue = (math.sin(stored * 0.3) * 0.5 + 0.5)
@@ -54,7 +59,7 @@ function AscendentESP:_getRainbow()
 	return Color3.fromHSV(hue, saturation, value)
 end
 
-function AscendentESP:_cleanup(object)
+function ObjectESP:_cleanup(object)
 	local tables = {self._boxes, self._tracers, self._names}
 
 	for _, drawingTable in next, tables do
@@ -67,7 +72,7 @@ function AscendentESP:_cleanup(object)
 	end
 end
 
-function AscendentESP:_removeESP()
+function ObjectESP:_removeESP()
 	for _, table in next, {self._tracers, self._boxes, self._names} do
 		for _, object in next, table do
 			if object then 
@@ -79,7 +84,7 @@ function AscendentESP:_removeESP()
 	self._tracers, self._boxes, self._names = {}, {}, {}
 end
 
-function AscendentESP:_drawBox(object, screenPosition, size, color)
+function ObjectESP:_drawBox(object, screenPosition, size, color)
 	if not self.Box then
 		if self._boxes[object] then self._boxes[object].Visible = false end
 		return
@@ -98,12 +103,11 @@ function AscendentESP:_drawBox(object, screenPosition, size, color)
 	self._boxes[object].Visible = true
 end
 
-function AscendentESP:_drawTracer(object, screenPosition, color)
+function ObjectESP:_drawTracer(object, screenPosition, color)
 	if not self.Tracer then
 		if self._tracers[object] then
 			self._tracers[object].Visible = false
 		end
-
 		return
 	end
 
@@ -113,18 +117,37 @@ function AscendentESP:_drawTracer(object, screenPosition, color)
 	})
 
 	local viewportSize = camera.ViewportSize
-	local cameraScreenPosition = Vector2.new(
-		viewportSize.X / 2,
-		viewportSize.Y / 2
-	)
+	local cameraScreenPosition
+
+	if self.TracerOrigin == "Character" then
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			viewportSize.Y / 2
+		)
+	elseif self.TracerOrigin == "Top" then
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			0
+		)
+	elseif self.TracerOrigin == "Bottom" then
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			viewportSize.Y
+		)
+	else
+		cameraScreenPosition = Vector2.new(
+			viewportSize.X / 2,
+			viewportSize.Y / 2
+		)
+	end
 
 	self._tracers[object].From = cameraScreenPosition
-	self._tracers[object].To = screenPosition
+	self._tracers[object].To = Vector2.new(screenPosition.X, screenPosition.Y)
 	self._tracers[object].Color = color
 	self._tracers[object].Visible = true
 end
 
-function AscendentESP:_drawName(object, screenPosition, size, distance, color)
+function ObjectESP:_drawName(object, screenPosition, size, distance, color)
 	if not self.Name then
 		if self._names[object] then self._names[object].Visible = false end
 		return
@@ -145,7 +168,7 @@ function AscendentESP:_drawName(object, screenPosition, size, distance, color)
 	self._names[object].Visible = true
 end
 
-function AscendentESP:_getScreenBox(object)
+function ObjectESP:_getScreenBox(object)
 	local objectCFrame = object.CFrame
 	local objectSize = object.Size
 
@@ -181,7 +204,7 @@ function AscendentESP:_getScreenBox(object)
 	return Vector2.new(maxX - minX, maxY - minY), Vector2.new((minX + maxX)/2, (minY + maxY)/2)
 end
 
-function AscendentESP:_renderESP()
+function ObjectESP:_renderESP()
 	self._connections = self._connections or {}
 
 	local connection = runService.RenderStepped:Connect(function()
@@ -229,7 +252,7 @@ function AscendentESP:_renderESP()
 	table.insert(self._connections, connection)
 end
 
-function AscendentESP:SetColor(objects, color)
+function ObjectESP:SetColor(objects, color)
 	if typeof(objects) ~= "table" then
 		objects = {objects}
 	end
@@ -239,7 +262,7 @@ function AscendentESP:SetColor(objects, color)
 	end
 end
 
-function AscendentESP:Setup(objects)
+function ObjectESP:Setup(objects)
 	if typeof(objects) ~= "table" then
 		objects = {objects}
 	end
@@ -251,7 +274,7 @@ function AscendentESP:Setup(objects)
 	end
 end
 
-function AscendentESP:Enable()
+function ObjectESP:Enable()
 	self.enabled = true
 
 	if not self._connections or #self._connections == 0 then
@@ -259,7 +282,7 @@ function AscendentESP:Enable()
 	end
 end
 
-function AscendentESP:Disable()
+function ObjectESP:Disable()
 	self.enabled = false
 	self:_removeESP()
 
@@ -272,4 +295,4 @@ function AscendentESP:Disable()
 	end
 end
 
-return AscendentESP
+return ObjectESP
