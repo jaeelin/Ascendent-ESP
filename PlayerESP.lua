@@ -5,24 +5,24 @@ local player = playerService.LocalPlayer
 
 local camera = workspace.CurrentCamera
 
-local AscendentESP = {}
-AscendentESP.__index = AscendentESP
+local PlayerESP = {}
+PlayerESP.__index = PlayerESP
 
-AscendentESP.Version = "1.0.0"
+PlayerESP.Version = "1.0.0"
 
-function AscendentESP.new(Config)
-	local self = setmetatable({}, AscendentESP)
+function PlayerESP.new(Config)
+	local self = setmetatable({}, PlayerESP)
 
 	self.enabled = false
 
 	self.Box = Config and Config.Box or false
 	self.HealthBar = Config and Config.HealthBar or false
-	self.TracerEnabled = Config and Config.Tracer or false
+	self.Tracer = Config and Config.Tracer or false
 	self.Skeleton = Config and Config.Skeleton or false
 	self.Name = Config and Config.Name or false
 	self.Arrows = Config and Config.Arrows or false
 	self.Rainbow = Config and Config.Rainbow or false
-	
+
 	self.TracerOrigin = Config and Config.TracerOrigin or "Character"
 
 	self.DefaultColor = Config and Config.DefaultColor or Color3.fromRGB(180, 255, 180)
@@ -35,7 +35,7 @@ function AscendentESP.new(Config)
 	self._skeletons = {}
 	self._names = {}
 	self._arrows = {}
-	
+
 	self.targetColors = {}
 
 	self._activeTargets = {}
@@ -45,7 +45,7 @@ function AscendentESP.new(Config)
 	return self
 end
 
-function AscendentESP:_createDrawing(type, properties)
+function PlayerESP:_createDrawing(type, properties)
 	local drawing = Drawing.new(type)
 
 	for property, value in next, properties do
@@ -55,7 +55,7 @@ function AscendentESP:_createDrawing(type, properties)
 	return drawing
 end
 
-function AscendentESP:_getRainbow()
+function PlayerESP:_getRainbow()
 	local stored = tick()
 
 	local hue = (math.sin(stored * 0.3) * 0.5 + 0.5)
@@ -65,12 +65,12 @@ function AscendentESP:_getRainbow()
 	return Color3.fromHSV(hue, saturation, value)
 end
 
-function AscendentESP:_drawBone(target, index, pointA, pointB, color)
+function PlayerESP:_drawBone(target, index, pointA, pointB, color)
 	if not pointA or not pointB then return end
 
 	local pointAPosition, aOnScreen = camera:WorldToViewportPoint(pointA.Position)
 	local pointBPosition, bOnScreen = camera:WorldToViewportPoint(pointB.Position)
-	
+
 	self._skeletons[target] = self._skeletons[target] or {}
 	self._skeletons[target][index] = self._skeletons[target][index] or self:_createDrawing("Line", {
 		Thickness = 1.5,
@@ -81,12 +81,12 @@ function AscendentESP:_drawBone(target, index, pointA, pointB, color)
 	local line = self._skeletons[target][index]
 	line.From = Vector2.new(pointAPosition.X, pointAPosition.Y)
 	line.To = Vector2.new(pointBPosition.X, pointBPosition.Y)
-	
+
 	line.Visible = aOnScreen or bOnScreen
 	line.Color = color
 end
 
-function AscendentESP:_cleanup(target)
+function PlayerESP:_cleanup(target)
 	for _, espTable in next, {self._boxes, self._healthbars, self._tracers, self._names, self._arrows} do
 		local object = espTable[target]
 		if object then
@@ -109,12 +109,12 @@ function AscendentESP:_cleanup(target)
 				line:Remove()
 			end
 		end
-		
+
 		self._skeletons[target] = nil
 	end
 end
 
-function AscendentESP:_removeESP()
+function PlayerESP:_removeESP()
 	local allTables = {self._tracers, self._boxes, self._names, self._healthbars, self._arrows}
 
 	for _, table in next, allTables do
@@ -138,7 +138,7 @@ function AscendentESP:_removeESP()
 	self._tracers, self._boxes, self._names, self._healthbars, self._skeletons, self._arrows = {}, {}, {}, {}, {}, {}
 end
 
-function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, color)
+function PlayerESP:_drawBox(target, screenPosition, boxWidth, boxHeight, color)
 	if not self.Box then
 		if self._boxes[target] then
 			self._boxes[target].Visible = false
@@ -160,7 +160,7 @@ function AscendentESP:_drawBox(target, screenPosition, boxWidth, boxHeight, colo
 	self._boxes[target].Visible = true
 end
 
-function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight)
+function PlayerESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight)
 	if not self.HealthBar then
 		if self._healthbars and self._healthbars[target] then
 			self._healthbars[target].Visible = false
@@ -199,8 +199,8 @@ function AscendentESP:_drawHealthBar(target, screenPosition, boxWidth, boxHeight
 	self._healthbars[target].Visible = true
 end
 
-function AscendentESP:_drawTracer(target, screenPosition, color)
-	if not self.TracerEnabled then
+function PlayerESP:_drawTracer(target, screenPosition, color)
+	if not self.Tracer then
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
@@ -243,7 +243,7 @@ function AscendentESP:_drawTracer(target, screenPosition, color)
 	self._tracers[target].Visible = true
 end
 
-function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, color)
+function PlayerESP:_drawName(target, screenPosition, boxHeight, distance, color)
 	if not self.Name then
 		if self._names[target] then
 			self._names[target].Visible = false
@@ -267,7 +267,7 @@ function AscendentESP:_drawName(target, screenPosition, boxHeight, distance, col
 	self._names[target].Visible = true
 end
 
-function AscendentESP:_drawSkeleton(target, character, color)
+function PlayerESP:_drawSkeleton(target, character, color)
 	if not self.Skeleton then
 		for _, skeleton in next, self._skeletons do
 			for _, line in next, skeleton do
@@ -283,10 +283,10 @@ function AscendentESP:_drawSkeleton(target, character, color)
 		if object and object:IsA("BasePart") then
 			return object
 		end
-		
+
 		return nil
 	end
-	
+
 	local torso = getPart("Torso") or getPart("UpperTorso")
 	local lowerTorso = getPart("LowerTorso")
 	local root = torso or lowerTorso
@@ -336,7 +336,7 @@ function AscendentESP:_drawSkeleton(target, character, color)
 	end
 end
 
-function AscendentESP:_drawArrows(target, _, color)
+function PlayerESP:_drawArrows(target, _, color)
 	if not self.Arrows then
 		if self._arrows[target] then
 			for _, line in next, self._arrows[target] do
@@ -353,14 +353,14 @@ function AscendentESP:_drawArrows(target, _, color)
 
 	local viewportSize = camera.ViewportSize
 	local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-	
+
 	local targetPosition = character.HumanoidRootPart.Position
 	local cameraPosition = camera.CFrame.Position
 	local toTarget = (targetPosition - cameraPosition)
 
 	local right = camera.CFrame.RightVector
 	local up = camera.CFrame.UpVector
-	
+
 	local xDir = toTarget:Dot(right)
 	local yDir = -toTarget:Dot(up)
 
@@ -395,7 +395,7 @@ function AscendentESP:_drawArrows(target, _, color)
 	end
 end
 
-function AscendentESP:_updateTargetESP(target)
+function PlayerESP:_updateTargetESP(target)
 	local character = target.Character
 	if not character or not character.Parent then
 		self:_cleanup(target)
@@ -458,7 +458,7 @@ function AscendentESP:_updateTargetESP(target)
 	self:_drawSkeleton(target, character, color)
 end
 
-function AscendentESP:setupESP(target)
+function PlayerESP:setupESP(target)
 	if target == player then return end
 
 	self._activeTargets[target] = true
@@ -476,11 +476,11 @@ function AscendentESP:setupESP(target)
 	end
 end
 
-function AscendentESP:SetColor(targetPlayer, color)
+function PlayerESP:SetColor(targetPlayer, color)
 	self.targetColors[targetPlayer] = color
 end
 
-function AscendentESP:Enable()
+function PlayerESP:Enable()
 	self.enabled = true
 
 	for _, target in next, playerService:GetPlayers() do
@@ -497,7 +497,7 @@ function AscendentESP:Enable()
 	end))
 end
 
-function AscendentESP:Disable()
+function PlayerESP:Disable()
 	self.enabled = false
 
 	if self._activeTargets then
@@ -515,4 +515,19 @@ function AscendentESP:Disable()
 	self._connections = {}
 end
 
-return AscendentESP
+local NewESP = PlayerESP.new({
+	Box = true,
+	Name = true,
+	Skeleton = true,
+	Tracer = true,
+	HealthBar = true,
+	Arrows = true
+})
+
+NewESP:Enable()
+
+task.wait(5)
+
+NewESP:Disable()
+
+return PlayerESP
