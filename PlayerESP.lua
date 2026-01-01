@@ -515,19 +515,4 @@ function PlayerESP:Disable()
 	self._connections = {}
 end
 
-local NewESP = PlayerESP.new({
-	Box = true,
-	Name = true,
-	Skeleton = true,
-	Tracer = true,
-	HealthBar = true,
-	Arrows = true
-})
-
-NewESP:Enable()
-
-task.wait(5)
-
-NewESP:Disable()
-
 return PlayerESP
