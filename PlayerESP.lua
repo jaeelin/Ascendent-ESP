@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 
 local player_esp = {}
 player_esp.__index = player_esp
-player_esp.version = "1.0.4"
+player_esp.version = "1.0.2"
 
 function player_esp.new(config)
 	local self = setmetatable({}, player_esp)
@@ -440,7 +440,7 @@ function player_esp:setup_esp(target)
 	end
 end
 
-function player_esp:set_color(target_player, color)
+function player_esp:SetColor(target_player, color)
 	self.target_colors[target_player] = color
 end
 
