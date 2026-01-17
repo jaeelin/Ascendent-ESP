@@ -1,28 +1,27 @@
-local player_service = game:GetService("Players")
-local run_service = game:GetService("RunService")
-
-local player = player_service.LocalPlayer
-
-local camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
 local player_esp = {}
 player_esp.__index = player_esp
-player_esp.version = "1.0.3"
+player_esp.version = "1.0.4"
 
 function player_esp.new(config)
 	local self = setmetatable({}, player_esp)
 
-	self.enabled = false
-	self.box = config and config.box or false
-	self.health_bar = config and config.health_bar or false
-	self.tracer = config and config.tracer or false
-	self.skeleton = config and config.skeleton or false
-	self.name = config and config.name or false
-	self.arrows = config and config.arrows or false
-	self.rainbow = config and config.rainbow or false
-	self.tracer_origin = config and config.tracer_origin or "Character"
-	self.default_color = config and config.default_color or Color3.fromRGB(180, 255, 180)
-	self.max_distance = config and config.max_distance or 300
+	self.Enabled = false
+	
+	self.Box = config and config.Box or false
+	self.HealthBar = config and config.HealthBar or false
+	self.Tracer = config and config.Tracer or false
+	self.Skeleton = config and config.Skeleton or false
+	self.Name = config and config.Name or false
+	self.Arrows = config and config.Arrows or false
+	self.Rainbow = config and config.Rainbow or false
+	self.TracerOrigin = config and config.TracerOrigin or "Character"
+	self.DefaultColor = config and config.DefaultColor or Color3.fromRGB(180, 255, 180)
+	self.MaxDistance = config and config.MaxDistance or 300
 
 	self._boxes = {}
 	self._health_bars = {}
@@ -56,8 +55,8 @@ end
 function player_esp:_draw_bone(target, index, point_a, point_b, color)
 	if not point_a or not point_b then return end
 
-	local point_a_position, a_on_screen = camera:WorldToViewportPoint(point_a.Position)
-	local point_b_position, b_on_screen = camera:WorldToViewportPoint(point_b.Position)
+	local point_a_position, a_on_screen = Camera:WorldToViewportPoint(point_a.Position)
+	local point_b_position, b_on_screen = Camera:WorldToViewportPoint(point_b.Position)
 
 	self._skeletons[target] = self._skeletons[target] or {}
 	self._skeletons[target][index] = self._skeletons[target][index] or self:_create_drawing("Line", {
@@ -125,7 +124,7 @@ function player_esp:_remove_esp()
 end
 
 function player_esp:_draw_box(target, screen_position, box_width, box_height, color)
-	if not self.box then
+	if not self.Box then
 		if self._boxes[target] then
 			self._boxes[target].Visible = false
 		end
@@ -146,7 +145,7 @@ function player_esp:_draw_box(target, screen_position, box_width, box_height, co
 end
 
 function player_esp:_draw_health_bar(target, screen_position, box_width, box_height)
-	if not self.health_bar then
+	if not self.HealthBar then
 		if self._health_bars and self._health_bars[target] then
 			self._health_bars[target].Visible = false
 		end
@@ -184,7 +183,7 @@ function player_esp:_draw_health_bar(target, screen_position, box_width, box_hei
 end
 
 function player_esp:_draw_tracer(target, screen_position, color)
-	if not self.tracer then
+	if not self.Tracer then
 		if self._tracers[target] then
 			self._tracers[target].Visible = false
 		end
@@ -196,14 +195,14 @@ function player_esp:_draw_tracer(target, screen_position, color)
 		Thickness = 1.5
 	})
 
-	local viewport_size = camera.ViewportSize
+	local viewport_size = Camera.ViewportSize
 	local camera_screen_position
 
-	if self.tracer_origin == "Character" then
+	if self.TracerOrigin == "Character" then
 		camera_screen_position = Vector2.new(viewport_size.X / 2, viewport_size.Y / 2)
-	elseif self.tracer_origin == "Top" then
+	elseif self.TracerOrigin == "Top" then
 		camera_screen_position = Vector2.new(viewport_size.X / 2, 0)
-	elseif self.tracer_origin == "Bottom" then
+	elseif self.TracerOrigin == "Bottom" then
 		camera_screen_position = Vector2.new(viewport_size.X / 2, viewport_size.Y)
 	else
 		camera_screen_position = Vector2.new(viewport_size.X / 2, viewport_size.Y / 2)
@@ -216,7 +215,7 @@ function player_esp:_draw_tracer(target, screen_position, color)
 end
 
 function player_esp:_draw_name(target, screen_position, box_height, distance, color)
-	if not self.name then
+	if not self.Name then
 		if self._names[target] then
 			self._names[target].Visible = false
 		end
@@ -239,7 +238,7 @@ function player_esp:_draw_name(target, screen_position, box_height, distance, co
 end
 
 function player_esp:_draw_skeleton(target, character, color)
-	if not self.skeleton then
+	if not self.Skeleton then
 		for _, skeleton in next, self._skeletons do
 			for _, line in next, skeleton do
 				line.Visible = false
@@ -302,7 +301,7 @@ function player_esp:_draw_skeleton(target, character, color)
 end
 
 function player_esp:_draw_arrows(target, _, color)
-	if not self.arrows then
+	if not self.Arrows then
 		if self._arrows[target] then
 			for _, line in next, self._arrows[target] do
 				line.Visible = false
@@ -316,15 +315,15 @@ function player_esp:_draw_arrows(target, _, color)
 
 	self._arrows[target] = self._arrows[target] or {}
 
-	local viewport_size = camera.ViewportSize
+	local viewport_size = Camera.ViewportSize
 	local screen_center = Vector2.new(viewport_size.X / 2, viewport_size.Y / 2)
 
 	local target_position = character.HumanoidRootPart.Position
-	local camera_position = camera.CFrame.Position
+	local camera_position = Camera.CFrame.Position
 	local to_target = (target_position - camera_position)
 
-	local right = camera.CFrame.RightVector
-	local up = camera.CFrame.UpVector
+	local right = Camera.CFrame.RightVector
+	local up = Camera.CFrame.UpVector
 
 	local x_dir = to_target:Dot(right)
 	local y_dir = -to_target:Dot(up)
@@ -376,15 +375,15 @@ function player_esp:_update_target_esp(target)
 		return
 	end
 
-	local color = self.target_colors[target] or self.default_color
-	if self.rainbow then
+	local color = self.target_colors[target] or self.DefaultColor
+	if self.Rainbow then
 		color = self:_get_rainbow()
 	end
 
-	local head_position, head_on_screen = camera:WorldToViewportPoint(
+	local head_position, head_on_screen = Camera:WorldToViewportPoint(
 		humanoid_root_part.Position + Vector3.new(0, 3, 0)
 	)
-	local foot_position, foot_on_screen = camera:WorldToViewportPoint(
+	local foot_position, foot_on_screen = Camera:WorldToViewportPoint(
 		humanoid_root_part.Position - Vector3.new(0, 3, 0)
 	)
 
@@ -397,12 +396,12 @@ function player_esp:_update_target_esp(target)
 	)
 
 	local distance = 0
-	local local_root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local local_root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 	if local_root then
 		distance = math.floor((local_root.Position - humanoid_root_part.Position).Magnitude)
 	end
 
-	if self.max_distance > 0 and distance > self.max_distance then
+	if self.MaxDistance > 0 and distance > self.MaxDistance then
 		self:_cleanup(target)
 		return
 	end
@@ -427,12 +426,12 @@ function player_esp:_update_target_esp(target)
 end
 
 function player_esp:setup_esp(target)
-	if target == player then return end
+	if target == LocalPlayer then return end
 	self._active_targets[target] = true
 
 	if not self._render_connection then
-		self._render_connection = run_service.RenderStepped:Connect(function()
-			if not self.enabled then return end
+		self._render_connection = RunService.RenderStepped:Connect(function()
+			if not self.Enabled then return end
 			for active_target in next, self._active_targets do
 				self:_update_target_esp(active_target)
 			end
@@ -450,18 +449,18 @@ function player_esp:Destroy(target)
 		for t in next, self._active_targets do
 			self:_cleanup(t)
 		end
-		
+
 		self._active_targets = {}
-		
+
 		return
 	end
-	
+
 	if typeof(target) == "Instance" and target:IsA("Player") then
 		self._active_targets[target] = nil
 		self:_cleanup(target)
 		return
 	end
-	
+
 	if type(target) == "table" then
 		for _, player_instance in next, target do
 			if typeof(player_instance) == "Instance" and player_instance:IsA("Player") then
@@ -469,30 +468,30 @@ function player_esp:Destroy(target)
 				self:_cleanup(player_instance)
 			end
 		end
-		
+
 		return
 	end
 end
 
 function player_esp:Enable()
-	self.enabled = true
+	self.Enabled = true
 
-	for _, target in next, player_service:GetPlayers() do
+	for _, target in next, Players:GetPlayers() do
 		self:setup_esp(target)
 	end
 
-	table.insert(self._connections, player_service.PlayerAdded:Connect(function(target)
+	table.insert(self._connections, Players.PlayerAdded:Connect(function(target)
 		self:setup_esp(target)
 	end))
 
-	table.insert(self._connections, player_service.PlayerRemoving:Connect(function(target)
+	table.insert(self._connections, Players.PlayerRemoving:Connect(function(target)
 		self._active_targets[target] = nil
 		self:_cleanup(target)
 	end))
 end
 
 function player_esp:Disable()
-	self.enabled = false
+	self.Enabled = false
 
 	if self._active_targets then
 		for target in next, self._active_targets do
