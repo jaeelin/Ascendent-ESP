@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 
 local player_esp = {}
 player_esp.__index = player_esp
-player_esp.version = "1.0.2"
+player_esp.version = "1.0.5"
 
 function player_esp.new(config)
 	local self = setmetatable({}, player_esp)
@@ -470,6 +470,16 @@ function player_esp:Destroy(target)
 		end
 
 		return
+	end
+end
+
+function player_esp:Add(target)
+	if not target then return end
+	
+	if typeof(target) ~= "Instance" or not target:IsA("Player") then return end
+	
+	if not self._active_targets[target] then
+		self:setup_esp(target)
 	end
 end
 
