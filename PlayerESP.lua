@@ -5,22 +5,26 @@ local Camera = workspace.CurrentCamera
 
 local player_esp = {}
 player_esp.__index = player_esp
-player_esp.version = "1.0.5"
+player_esp.version = "1.0.6"
 
 function player_esp.new(config)
 	local self = setmetatable({}, player_esp)
 
 	self.Enabled = false
-	
+
 	self.Box = config and config.Box or false
 	self.HealthBar = config and config.HealthBar or false
 	self.Tracer = config and config.Tracer or false
 	self.Skeleton = config and config.Skeleton or false
 	self.Name = config and config.Name or false
 	self.Arrows = config and config.Arrows or false
+	self.Chams = config and config.Chams or false
+	self.ChamsFill = config and config.ChamsFill or false
 	self.Rainbow = config and config.Rainbow or false
 	self.TracerOrigin = config and config.TracerOrigin or "Character"
 	self.DefaultColor = config and config.DefaultColor or Color3.fromRGB(180, 255, 180)
+	self.ChamsColor = config and config.ChamsColor or Color3.fromRGB(155, 200, 150)
+	self.ChamsOutline = config and config.ChamsOutline or Color3.fromRGB(180, 255, 180)
 	self.MaxDistance = config and config.MaxDistance or 300
 
 	self._boxes = {}
@@ -29,6 +33,8 @@ function player_esp.new(config)
 	self._skeletons = {}
 	self._names = {}
 	self._arrows = {}
+	self._chams = {}
+
 	self.target_colors = {}
 	self._active_targets = {}
 	self._connections = {}
@@ -45,10 +51,12 @@ function player_esp:_create_drawing(type, properties)
 end
 
 function player_esp:_get_rainbow()
-	local stored = tick()
-	local hue = (math.sin(stored * 0.3) * 0.5 + 0.5)
-	local saturation = 0.4 + 0.1 * math.sin(stored * 0.2 + 1)
-	local value = 0.85 + 0.1 * math.sin(stored * 0.25 + 2)
+	local t = tick() * 0.5
+	local hue = (t * 0.35) % 1
+
+	local saturation = 0.90
+	local value = 0.90
+
 	return Color3.fromHSV(hue, saturation, value)
 end
 
@@ -93,12 +101,17 @@ function player_esp:_cleanup(target)
 		end
 		self._skeletons[target] = nil
 	end
+
+	if self._chams[target] then
+		self._chams[target]:Destroy()
+		self._chams[target] = nil
+	end
 end
 
 function player_esp:_remove_esp()
 	local all_tables = {self._tracers, self._boxes, self._names, self._health_bars, self._arrows}
-	for _, tbl in next, all_tables do
-		for _, object in next, tbl do
+	for _, table in next, all_tables do
+		for _, object in next, table do
 			if type(object) == "table" then
 				for _, sub_object in next, object do
 					sub_object.Visible = false
@@ -115,12 +128,17 @@ function player_esp:_remove_esp()
 		end
 	end
 
+	for _, chams in next, self._chams do
+		if chams then chams:Destroy() end
+	end
+
 	self._tracers = {}
 	self._boxes = {}
 	self._names = {}
 	self._health_bars = {}
 	self._skeletons = {}
 	self._arrows = {}
+	self._chams = {}
 end
 
 function player_esp:_draw_box(target, screen_position, box_width, box_height, color)
@@ -360,6 +378,29 @@ function player_esp:_draw_arrows(target, _, color)
 	end
 end
 
+function player_esp:_draw_chams(target, character, color_fill, color_outline)
+	if not self.Chams then
+		if self._chams[target] then
+			self._chams[target].Enabled = false
+		end
+		return
+	end
+
+	if not character or not character.Parent then return end
+
+	self._chams[target] = self._chams[target] or Instance.new("Highlight")
+	local highlight = self._chams[target]
+
+	highlight.Parent = character
+	highlight.Adornee = character
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = color_fill or self.ChamsColor
+	highlight.OutlineColor = color_outline or self.ChamsOutline
+	highlight.FillTransparency = self.ChamsFill and 0.4 or 1
+	highlight.OutlineTransparency = 0
+	highlight.Enabled = true
+end
+
 function player_esp:_update_target_esp(target)
 	local character = target.Character
 	if not character or not character.Parent then
@@ -423,6 +464,10 @@ function player_esp:_update_target_esp(target)
 	self:_draw_tracer(target, box_center, color)
 	self:_draw_name(target, box_center, box_height, distance, color)
 	self:_draw_skeleton(target, character, color)
+
+	local fill = self.Rainbow and self:_get_rainbow() or self.ChamsColor
+	local outline = self.Rainbow and self:_get_rainbow() or self.ChamsOutline
+	self:_draw_chams(target, character, fill, outline)
 end
 
 function player_esp:setup_esp(target)
@@ -475,9 +520,9 @@ end
 
 function player_esp:Add(target)
 	if not target then return end
-	
+
 	if typeof(target) ~= "Instance" or not target:IsA("Player") then return end
-	
+
 	if not self._active_targets[target] then
 		self:setup_esp(target)
 	end
