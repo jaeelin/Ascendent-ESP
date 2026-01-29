@@ -377,37 +377,4 @@ function ObjectESP:Disable()
 	end
 end
 
-local myObjectESP = ObjectESP.new({
-	box = true,
-	tracer = true,
-	name = true,
-	rainbow = false,
-	default_color = Color3.fromRGB(255, 255, 255),
-	max_distance = 500,
-	tracer_origin = "Character"
-})
-
-local objects = {}
-for _, part in next, workspace.Minefield.Mines:GetDescendants() do
-	if part:IsA("BasePart") and part.Name == "Hitbox" then
-		table.insert(objects, part)
-	end
-end
-
-myObjectESP:Setup(objects)
-
-myObjectESP:Enable()
-
-task.wait(5)
-
-myObjectESP:Destroy(workspace.Minefield.Mines:GetChildren()[2].Hitbox)
-
-task.wait(5)
-
-myObjectESP:Add(workspace.Minefield.Mines:GetChildren()[2].Hitbox)
-
-task.wait(10)
-
-myObjectESP:Disable()
-
 return ObjectESP
