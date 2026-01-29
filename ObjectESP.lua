@@ -7,7 +7,7 @@ local Camera = workspace.CurrentCamera
 
 local ObjectESP = {}
 ObjectESP.__index = ObjectESP
-ObjectESP.Version = "1.0.0"
+ObjectESP.Version = "1.0.1"
 
 function ObjectESP.new(config)
 	local self = setmetatable({}, ObjectESP)
@@ -169,9 +169,11 @@ function ObjectESP:DrawName(Object: BasePart, ScreenPosition: Vector2, Size: Vec
 		Center = true,
 		Outline = true
 	})
-
+	
+	local display = Object:GetAttribute("ESPName") or Object.Name
+	
 	local name = self._names[Object]
-	name.Text = Object.Name .. " [" .. Distance .. "m]"
+	name.Text = display .. " [" .. Distance .. "m]"
 	name.Position = ScreenPosition + Vector2.new(0, -Size.Y / 2 - 5)
 	name.Color = Color
 	name.Visible = true
@@ -374,5 +376,38 @@ function ObjectESP:Disable()
 		self._connections = nil
 	end
 end
+
+local myObjectESP = ObjectESP.new({
+	box = true,
+	tracer = true,
+	name = true,
+	rainbow = false,
+	default_color = Color3.fromRGB(255, 255, 255),
+	max_distance = 500,
+	tracer_origin = "Character"
+})
+
+local objects = {}
+for _, part in next, workspace.Minefield.Mines:GetDescendants() do
+	if part:IsA("BasePart") and part.Name == "Hitbox" then
+		table.insert(objects, part)
+	end
+end
+
+myObjectESP:Setup(objects)
+
+myObjectESP:Enable()
+
+task.wait(5)
+
+myObjectESP:Destroy(workspace.Minefield.Mines:GetChildren()[2].Hitbox)
+
+task.wait(5)
+
+myObjectESP:Add(workspace.Minefield.Mines:GetChildren()[2].Hitbox)
+
+task.wait(10)
+
+myObjectESP:Disable()
 
 return ObjectESP
